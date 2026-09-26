@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>YashuChat</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;height:100%;font-family:Inter,system-ui,-apple-system,Segoe UI,Arial,sans-serif;background:#eef2f7;color:#111827}
+button,input{font:inherit}.app{width:min(1100px,100%);height:100%;margin:auto;background:#fff;display:grid;grid-template-columns:330px 1fr;overflow:hidden}
+.sidebar{border-right:1px solid #e5e7eb;display:flex;flex-direction:column;background:#fff}.top{padding:18px;border-bottom:1px solid #eee}.brand{font-size:22px;font-weight:800}.me{font-size:13px;color:#6b7280;margin-top:5px}
+.search{margin:12px 16px 8px;padding:12px;border:1px solid #e5e7eb;border-radius:12px;width:calc(100% - 32px);outline:0}.add{margin:0 16px 12px;width:calc(100% - 32px);padding:11px;border:0;border-radius:11px;background:#111827;color:#fff;font-weight:700;cursor:pointer}
+.chats{overflow:auto;flex:1}.chatitem{padding:14px 16px;border-bottom:1px solid #f3f4f6;cursor:pointer}.chatitem:hover{background:#f8fafc}.chatname{font-weight:700}.preview{font-size:13px;color:#6b7280;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.main{display:flex;flex-direction:column;min-width:0}.empty{margin:auto;text-align:center;color:#6b7280;padding:30px}.empty h2{color:#111827}
+.chatview{height:100%;display:none;flex-direction:column}.chathead{padding:15px 18px;border-bottom:1px solid #e5e7eb;display:flex;align-items:center;gap:12px}.avatar{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;background:#111827;color:#fff;font-weight:800}.headname{font-weight:800}.online{font-size:12px;color:#16a34a;margin-top:3px}
+.messages{flex:1;overflow:auto;padding:20px;background:#f8fafc;display:flex;flex-direction:column;gap:8px}.bubble{max-width:72%;padding:10px 13px;border-radius:16px;line-height:1.35;word-break:break-word}.mine{align-self:flex-end;background:#111827;color:#fff;border-bottom-right-radius:5px}.theirs{align-self:flex-start;background:#fff;border:1px solid #e5e7eb;border-bottom-left-radius:5px}.tm{font-size:10px;opacity:.6;text-align:right;margin-top:4px}
+.composer{display:flex;gap:8px;padding:12px;border-top:1px solid #e5e7eb}.composer input{flex:1;padding:13px;border:1px solid #d1d5db;border-radius:22px;outline:0}.composer button{padding:0 20px;border:0;border-radius:22px;background:#111827;color:#fff;font-weight:700;cursor:pointer}
+.modal,.auth{position:fixed;inset:0;background:#0008;display:none;place-items:center;padding:20px;z-index:10}.auth{background:#eef2f7;display:grid}.card,.authcard{background:#fff;width:min(420px,100%);padding:25px;border-radius:18px}.card h2,.authcard h1{margin-top:0}.card input,.authcard input{width:100%;padding:13px;margin:7px 0;border:1px solid #d1d5db;border-radius:10px;outline:0}.card button,.authcard button{width:100%;padding:12px;margin-top:8px;border:0;border-radius:10px;background:#111827;color:#fff;font-weight:700;cursor:pointer}.cancel{background:#e5e7eb!important;color:#111827!important}.err{color:#dc2626;font-size:13px;margin-top:8px}.hint{font-size:12px;color:#6b7280;margin-top:8px;line-height:1.5}.mobileback{display:none;border:0;background:transparent;font-size:22px}
+@media(max-width:700px){.app{grid-template-columns:1fr}.sidebar{display:flex}.main{display:none}.app.mobile-chat .sidebar{display:none}.app.mobile-chat .main{display:flex}.mobileback{display:block}}
+</style>
+</head>
+<body>
+
+<div id="auth" class="auth">
+  <div class="authcard">
+    <h1>💬 YashuChat</h1>
+    <p>Create your own unique ID and start private 1-to-1 chats.</p>
+    <input id="displayName" maxlength="30" placeholder="Your name">
+    <input id="username" maxlength="20" autocomplete="username" placeholder="Unique ID — e.g. yashu_07">
+    <button id="startBtn">Create / Enter</button>
+    <div class="hint">ID must be 3–20 characters: lowercase letters, numbers and underscore. Once claimed, it belongs to this account.</div>
+    <div id="authErr" class="err"></div>
+  </div>
+</div>
+
+<div id="app" class="app" style="display:none">
+  <aside class="sidebar">
+    <div class="top"><div class="brand">YashuChat</div><div class="me" id="myId"></div></div>
+    <input class="search" id="search" placeholder="Search unique ID...">
+    <button class="add" id="addBtn">＋ New Chat</button>
+    <div class="chats" id="chatList"></div>
+  </aside>
+  <main class="main">
+    <div id="empty" class="empty"><h2>Your messages</h2><p>Search a unique ID and start a private chat.</p></div>
+    <div id="chatView" class="chatview">
+      <div class="chathead">
+        <button class="mobileback" id="backBtn">←</button>
+        <div class="avatar" id="chatAvatar">?</div>
+        <div><div class="headname" id="chatName"></div><div class="online" id="chatStatus">Private chat</div></div>
+      </div>
+      <div class="messages" id="messages"></div>
+      <div class="composer"><input id="msg" maxlength="2000" placeholder="Message..."><button id="send">Send</button></div>
+    </div>
+  </main>
+</div>
+
+<div class="modal" id="modal">
+  <div class="card">
+    <h2>Start a chat</h2>
+    <input id="findId" maxlength="20" placeholder="Enter unique ID">
+    <button id="findBtn">Find User</button>
+    <div id="findResult"></div>
+    <button class="cancel" id="closeBtn">Cancel</button>
+  </div>
+</div>
+
+<script type="module">
+import {initializeApp} from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
+import {getAuth,signInAnonymously,onAuthStateChanged} from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
+import {getDatabase,ref,set,get,push,onValue,serverTimestamp} from "https://www.gstatic.com/firebasejs/12.19.0/firebase-database.js";
+
+const firebaseConfig={
+ apiKey:"AIzaSyAXC1BImpHxvn8tI3pXwqNHZGh-LFTsjn8",
+ authDomain:"yashuterainstablock.firebaseapp.com",
+ databaseURL:"https://yashuterainstablock-default-rtdb.firebaseio.com",
+ projectId:"yashuterainstablock",
+ storageBucket:"yashuterainstablock.firebasestorage.app",
+ messagingSenderId:"279541635211",
+ appId:"1:279541635211:web:a1d7df87b6638571cedc8e"
+};
+
+const app=initializeApp(firebaseConfig),auth=getAuth(app),db=getDatabase(app);
+let uid=null,myUsername="",myName="",activeUser=null,stopMessages=null;
+const $=id=>document.getElementById(id);
+const cleanId=x=>x.trim().toLowerCase();
+const validId=x=>/^[a-z0-9_]{3,20}$/.test(x);
+const chatId=(a,b)=>[a,b].sort().join("__");
+const initials=n=>(n||"?").trim().slice(0,1).toUpperCase();
+
+const authReady=new Promise(resolve=>{
+  onAuthStateChanged(auth,u=>{uid=u?.uid||null;resolve(uid)});
+});
+signInAnonymously(auth).catch(e=>{
+  console.error(e);
+  $("authErr").textContent="Firebase login failed: "+e.message;
+});
+
+async function start(){
+  await authReady;
+  $("authErr").textContent="";
+  const name=$("displayName").value.trim(), username=cleanId($("username").value);
+  if(!name)return $("authErr").textContent="Enter your name.";
+  if(!validId(username))return $("authErr").textContent="ID: 3–20 lowercase letters, numbers or underscore.";
+  if(!uid)return $("authErr").textContent="Firebase authentication failed. Check Anonymous Auth.";
+
+  try{
+    const uref=ref(db,"users/"+username), snap=await get(uref);
+    if(snap.exists() && snap.val().uid!==uid)return $("authErr").textContent="This ID is already taken.";
+    await set(uref,{uid,name,username,createdAt:snap.exists()?snap.val().createdAt:serverTimestamp()});
+    const old=await get(ref(db,"uidToUsername/"+uid));
+    if(old.exists() && old.val()!==username)return $("authErr").textContent="This browser is already linked to @"+old.val()+".";
+    await set(ref(db,"uidToUsername/"+uid),username);
+    myUsername=username;myName=name;
+    $("auth").style.display="none";$("app").style.display="grid";$("myId").textContent="@"+username;
+    loadChats();
+  }catch(e){console.error(e);$("authErr").textContent="Database error: "+e.message}
+}
+
+$("startBtn").onclick=start;
+$("username").addEventListener("keydown",e=>{if(e.key==="Enter")start()});
+$("addBtn").onclick=()=>{$("modal").style.display="grid";$("findId").focus()};
+$("closeBtn").onclick=()=>{$("modal").style.display="none";$("findResult").innerHTML=""};
+
+$("findBtn").onclick=async()=>{
+ const id=cleanId($("findId").value);$("findResult").textContent="";
+ if(!validId(id))return $("findResult").innerHTML='<div class="err">Enter a valid ID.</div>';
+ if(id===myUsername)return $("findResult").innerHTML='<div class="err">That is your own ID.</div>';
+ try{
+   const snap=await get(ref(db,"users/"+id));
+   if(!snap.exists())return $("findResult").innerHTML='<div class="err">User not found.</div>';
+   const u=snap.val(),b=document.createElement("button");
+   b.textContent="Chat with @"+u.username;
+   b.onclick=async()=>{await createChat(u.username,u.name);$("modal").style.display="none";openChat(u.username,u.name)};
+   $("findResult").appendChild(b);
+ }catch(e){$("findResult").innerHTML='<div class="err">Search failed: '+e.message+'</div>'}
+};
+
+async function createChat(username,name){
+ const id=chatId(myUsername,username);
+ await set(ref(db,"chats/"+id+"/members/"+myUsername),true);
+ await set(ref(db,"chats/"+id+"/members/"+username),true);
+ await set(ref(db,"chats/"+id+"/profiles/"+myUsername),{username:myUsername,name:myName});
+ await set(ref(db,"chats/"+id+"/profiles/"+username),{username,name});
+ await set(ref(db,"chats/"+id+"/updatedAt"),serverTimestamp());
+ await set(ref(db,"chatIndex/"+myUsername+"/"+username),{chatId:id,name});
+ await set(ref(db,"chatIndex/"+username+"/"+myUsername),{chatId:id,name:myName});
+}
+
+function loadChats(){
+ onValue(ref(db,"chatIndex/"+myUsername),snap=>{
+   $("chatList").innerHTML="";
+   const data=snap.val()||{};
+   Object.entries(data).forEach(([username,info])=>{
+     const item=document.createElement("div");item.className="chatitem";
+     item.innerHTML='<div class="chatname">@'+username+'</div><div class="preview">'+(info.name||"Private chat")+'</div>';
+     item.onclick=()=>openChat(username,info.name);
+     $("chatList").appendChild(item);
+   });
+ });
+}
+
+function openChat(username,name){
+ activeUser=username;
+ $("empty").style.display="none";$("chatView").style.display="flex";$("app").classList.add("mobile-chat");
+ $("chatName").textContent="@"+username+" • "+name;$("chatAvatar").textContent=initials(name);$("chatStatus").textContent="Private chat";
+ $("messages").innerHTML="";
+ if(stopMessages)stopMessages();
+ const id=chatId(myUsername,username);
+ stopMessages=onValue(ref(db,"messages/"+id),snap=>{
+   $("messages").innerHTML="";
+   const data=snap.val()||{};
+   Object.values(data).sort((a,b)=>(a.timestamp||0)-(b.timestamp||0)).forEach(m=>{
+     const b=document.createElement("div");b.className="bubble "+(m.uid===uid?"mine":"theirs");
+     const t=document.createElement("div");t.textContent=m.text;
+     const tm=document.createElement("div");tm.className="tm";
+     if(m.timestamp)tm.textContent=new Date(m.timestamp).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});
+     b.append(t,tm);$("messages").appendChild(b);
+   });
+   $("messages").scrollTop=$("messages").scrollHeight;
+ });
+}
+
+async function send(){
+ const text=$("msg").value.trim();if(!text||!activeUser)return;
+ const id=chatId(myUsername,activeUser);
+ await set(push(ref(db,"messages/"+id)),{uid,text,timestamp:serverTimestamp()});
+ await set(ref(db,"chats/"+id+"/updatedAt"),serverTimestamp());
+ $("msg").value="";$("msg").focus();
+}
+$("send").onclick=send;
+$("msg").addEventListener("keydown",e=>{if(e.key==="Enter")send()});
+$("backBtn").onclick=()=>{$("app").classList.remove("mobile-chat");$("chatView").style.display="none";$("empty").style.display="block";activeUser=null;if(stopMessages)stopMessages()};
+$("search").addEventListener("input",e=>{
+ const q=cleanId(e.target.value);
+ [...$("chatList").children].forEach(x=>x.style.display=(!q||x.textContent.toLowerCase().includes(q))?"block":"none");
+});
+</script>
+</body>
+</html>
