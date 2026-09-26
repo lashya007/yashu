@@ -1,0 +1,45 @@
+{
+  "rules": {
+    "users": {
+      "$username": {
+        ".read": "auth != null",
+        ".write": "auth != null && (!data.exists() && newData.child('uid').val() === auth.uid || data.child('uid').val() === auth.uid)",
+        ".validate": "newData.hasChildren(['uid','name','username']) && newData.child('username').val() === $username && newData.child('uid').isString() && newData.child('name').isString()"
+      }
+    },
+    "uidToUsername": {
+      "$uid": {
+        ".read": "$uid === auth.uid",
+        ".write": "$uid === auth.uid"
+      }
+    },
+    "chatIndex": {
+      "$username": {
+        ".read": "auth != null && root.child('users').child($username).child('uid').val() === auth.uid",
+        "$other": {
+          ".write": "auth != null && root.child('users').child($username).child('uid').val() === auth.uid && root.child('users').child($other).exists()"
+        }
+      }
+    },
+    "chats": {
+      "$chatId": {
+        ".read": "auth != null && (data.child('members').child(root.child('uidToUsername').child(auth.uid).val()).val() === true || newData.child('members').child(root.child('uidToUsername').child(auth.uid).val()).val() === true)",
+        ".write": "auth != null && (data.child('members').child(root.child('uidToUsername').child(auth.uid).val()).val() === true || newData.child('members').child(root.child('uidToUsername').child(auth.uid).val()).val() === true)",
+        "members": {
+          "$username": {
+            ".validate": "newData.val() === true"
+          }
+        }
+      }
+    },
+    "messages": {
+      "$chatId": {
+        ".read": "auth != null && root.child('chats').child($chatId).child('members').child(root.child('uidToUsername').child(auth.uid).val()).val() === true",
+        "$messageId": {
+          ".write": "auth != null && root.child('chats').child($chatId).child('members').child(root.child('uidToUsername').child(auth.uid).val()).val() === true && newData.child('uid').val() === auth.uid",
+          ".validate": "newData.hasChildren(['uid','text','timestamp']) && newData.child('uid').val() === auth.uid && newData.child('text').isString() && newData.child('text').val().length <= 2000"
+        }
+      }
+    }
+  }
+}
