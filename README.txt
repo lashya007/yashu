@@ -1,0 +1,1 @@
+Upload all files to GitHub Pages. Open index.html. Create / Enter now redirects to chat.html only after Firebase anonymous auth and username registration succeed. Publish firebase-rules.json in Realtime Database Rules.
