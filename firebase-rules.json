@@ -1,0 +1,54 @@
+{
+  "rules": {
+    "users": {
+      "$username": {
+        ".read": "auth != null",
+        ".write": "auth != null && (!data.exists() || data.child('uid').val() === auth.uid)",
+        ".validate": "newData.hasChildren(['uid','name','username']) && newData.child('username').val() === $username && newData.child('uid').val() === auth.uid"
+      }
+    },
+    "uidToUsername": {
+      "$uid": {
+        ".read": "$uid === auth.uid",
+        ".write": "$uid === auth.uid && (!data.exists() || data.val() === newData.val()) && root.child('users').child(newData.val()).child('uid').val() === auth.uid"
+      }
+    },
+    "chatIndex": {
+      "$username": {
+        ".read": "auth != null && $username === root.child('uidToUsername').child(auth.uid).val()",
+        "$other": {
+          ".write": "auth != null && ( ($username === root.child('uidToUsername').child(auth.uid).val() || $other === root.child('uidToUsername').child(auth.uid).val()) && root.child('chats').child(newData.child('chatId').val()).child('members').child($username).val() === true && root.child('chats').child(newData.child('chatId').val()).child('members').child($other).val() === true )"
+        }
+      }
+    },
+    "chats": {
+      "$chatId": {
+        ".read": "auth != null && data.child('members').child(root.child('uidToUsername').child(auth.uid).val()).val() === true",
+        ".write": "auth != null && ((!data.exists() && newData.child('members').child(root.child('uidToUsername').child(auth.uid).val()).val() === true) || (data.exists() && data.child('members').child(root.child('uidToUsername').child(auth.uid).val()).val() === true))"
+      }
+    },
+    "messages": {
+      "$chatId": {
+        ".read": "auth != null && root.child('chats').child($chatId).child('members').child(root.child('uidToUsername').child(auth.uid).val()).val() === true",
+        "$messageId": {
+          ".write": "auth != null && root.child('chats').child($chatId).child('members').child(root.child('uidToUsername').child(auth.uid).val()).val() === true && newData.child('uid').val() === auth.uid",
+          ".validate": "newData.hasChildren(['uid','text','timestamp']) && newData.child('uid').val() === auth.uid && newData.child('text').isString() && newData.child('text').val().length <= 2000"
+        }
+      }
+    },
+    "calls": {
+      "$callId": {
+        ".read": "auth != null && (data.child('callerUid').val() === auth.uid || data.child('calleeUid').val() === auth.uid)",
+        ".write": "auth != null && ((!data.exists() && newData.child('callerUid').val() === auth.uid) || data.child('callerUid').val() === auth.uid || data.child('calleeUid').val() === auth.uid)"
+      }
+    },
+    "incomingCalls": {
+      "$uid": {
+        ".read": "$uid === auth.uid",
+        "$callId": {
+          ".write": "auth != null && ($uid === auth.uid || newData.val() === true)"
+        }
+      }
+    }
+  }
+}
